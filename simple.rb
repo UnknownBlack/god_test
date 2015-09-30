@@ -1,4 +1,5 @@
+data = ''
 loop do
   puts 'Hello'
-  sleep 1
+  100000.times { data << 'x' }
 end
