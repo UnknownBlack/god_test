@@ -1,5 +1,5 @@
 data = ''
 loop do
-  puts 'Hello'
+  echo 'Hello'
   100000.times { data << 'x' }
 end
