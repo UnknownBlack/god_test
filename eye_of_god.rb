@@ -3,12 +3,12 @@ require 'net/http'
 class EyeOfGod
 
   def initialize
-    #@array_retry = []
+    @app_errors = {}
   end
 
 
   def monitor_url(url_data)
-    # Init hash_data
+    # Init url_data
     url_data = url_data.merge({notifs: [], errors: []})
 
     # Check if an ssl connection is required and handles errors of url format
@@ -55,9 +55,31 @@ class EyeOfGod
   # Check code of response get
   def check_code(url_data)
     if url_data[:response].code != '200'
-      url_data[:notifs].push("email")
-      
+      url_data[:notifs].push("slack-tech")
+
+      if @app_errors["#{url_data[:name]}"]
+        @app_errors["#{url_data[:name]}"] += 1
+      else
+        @app_errors["#{url_data[:name]}"] = 1
+      end
+
+      if @app_errors["#{url_data[:name]}"] > 5
+        restart_app(url_data[:restart])
+        url_data[:notifs].push("email")
+      end
+
+      if @app_errors["#{url_data[:name]}"] > 10
+        url_data[:notifs].push("sms")
+      end
+
+    else
+      @app_errors["#{url_data[:name]}"] = 0
     end
+  end
+
+
+  def restart_app(reset)
+
   end
 
 
@@ -111,10 +133,11 @@ class EyeOfGod
     msg_format_error = "E -"
 
     errors.each do |error|
-      if error === "url_not_exist"
+      case error
+      when "url_not_exist"
         f.puts "#{msg_format_error} ERROR fatal => url not match !"
       else
-        f.puts "#{msg_format_error} ERROR fatal => error not found !"
+        f.puts "#{msg_format_error} ERROR fatal => error unknown !"
       end
     end
   end
@@ -125,7 +148,8 @@ class EyeOfGod
     msg_format_notif = "N -"
 
     notifs.each do |notif|
-      if notif === "email"
+      case notif
+      when "email"
         f.puts "#{msg_format_notif} Notification by email"
       else
         f.puts "#{msg_format_notif} Other notification"
@@ -143,27 +167,25 @@ end
 
 
 #####################################################################################
-url_data = [{name: "blog", url: "www.over-blog.com"},
-            {name: "perdu", url: "www.perdu.com/index.html"},
-            {name: "test_code_error", url: "www.reveauxlettres.fr/truc/truc.html"},
-            {name: "test_url_error", url: "www.tqeruihqfui.com"}]
+url_data = [{name: "blog", url: "www.over-blog.com", restart: "scalingo "},
+            {name: "perdu", url: "www.perdu.com/index.html", restart: "scalingo "},
+            {name: "test_code_error", url: "www.reveauxlettres.fr/truc/truc.html", restart: "scalingo "},
+            {name: "test_url_error", url: "www.tqeruihqfui.com", restart: "scalingo "}]
 
 eye = EyeOfGod.new
 c = 1
 
-
 loop do
-  puts "\n\n----- Checking #{c} -----\n"
+  if ARGV.include?("show"); puts "\n\n----- Checking #{c} -----\n"; c += 1 end
 
   url_data.each do |url_data|
     eye.monitor_url(url_data)
   end
 
+  # for the tests
   if ARGV.include?("exit"); exit end
 
-  sleep(10)
-
-  c += 1
+  sleep()
 end
 
 
